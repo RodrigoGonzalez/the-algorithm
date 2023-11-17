@@ -31,16 +31,13 @@ def _sparse_feature_fixup(features, input_size_bits):
     SparseTensor: Rebuilt and non-faulty version of `features`."""
   sparse_feature_dim = tf.constant(2**input_size_bits, dtype=tf.int64)
   sparse_shape = tf.stack([features.dense_shape[0], sparse_feature_dim])
-  sparse_tf = tf.SparseTensor(features.indices, features.values, sparse_shape)
-  return sparse_tf
+  return tf.SparseTensor(features.indices, features.values, sparse_shape)
 
 
 def self_atten_dense(input, out_dim, activation=None, use_bias=True, name=None):
   def safe_concat(base, suffix):
     """Concats variables name components if base is given."""
-    if not base:
-      return base
-    return f"{base}:{suffix}"
+    return base if not base else f"{base}:{suffix}"
 
   input_dim = input.shape.as_list()[1]
 
@@ -82,16 +79,14 @@ def get_input_trans_func(bn_normalized_dense, is_training):
 
   gw_normalized_dense = tf.squeeze(gw_normalized_dense, [-1])
 
-  bn_gw_normalized_dense = tf.layers.batch_normalization(
-    gw_normalized_dense,
-    training=is_training,
-    renorm_momentum=0.9999,
-    momentum=0.9999,
-    renorm=is_training,
-    trainable=True,
+  return tf.layers.batch_normalization(
+      gw_normalized_dense,
+      training=is_training,
+      renorm_momentum=0.9999,
+      momentum=0.9999,
+      renorm=is_training,
+      trainable=True,
   )
-
-  return bn_gw_normalized_dense
 
 
 def tensor_dropout(
@@ -117,22 +112,20 @@ def tensor_dropout(
   Returns:
     tensor dropped out"""
   if sparse_tensor == True:
-    if is_training:
-      with tf.variable_scope("sparse_dropout"):
-        values = input_tensor.values
-        keep_mask = tf.keras.backend.random_binomial(
-          tf.shape(values), p=1 - rate, dtype=tf.float32, seed=None
-        )
-        keep_mask.set_shape([None])
-        keep_mask = tf.cast(keep_mask, tf.bool)
-
-        keep_indices = tf.boolean_mask(input_tensor.indices, keep_mask, axis=0)
-        keep_values = tf.boolean_mask(values, keep_mask, axis=0)
-
-        dropped_tensor = tf.SparseTensor(keep_indices, keep_values, input_tensor.dense_shape)
-        return dropped_tensor
-    else:
+    if not is_training:
       return input_tensor
+    with tf.variable_scope("sparse_dropout"):
+      values = input_tensor.values
+      keep_mask = tf.keras.backend.random_binomial(
+        tf.shape(values), p=1 - rate, dtype=tf.float32, seed=None
+      )
+      keep_mask.set_shape([None])
+      keep_mask = tf.cast(keep_mask, tf.bool)
+
+      keep_indices = tf.boolean_mask(input_tensor.indices, keep_mask, axis=0)
+      keep_values = tf.boolean_mask(values, keep_mask, axis=0)
+
+      return tf.SparseTensor(keep_indices, keep_values, input_tensor.dense_shape)
   elif sparse_tensor == False:
     return tf.layers.dropout(input_tensor, rate=rate, training=is_training)
 
@@ -172,16 +165,14 @@ def adaptive_transformation(bn_normalized_dense, is_training, func_type="default
     )(gw_normalized_dense)
 
   gw_normalized_dense = tf.squeeze(gw_normalized_dense, [-1])
-  bn_gw_normalized_dense = tf.layers.batch_normalization(
-    gw_normalized_dense,
-    training=is_training,
-    renorm_momentum=0.9999,
-    momentum=0.9999,
-    renorm=is_training,
-    trainable=True,
+  return tf.layers.batch_normalization(
+      gw_normalized_dense,
+      training=is_training,
+      renorm_momentum=0.9999,
+      momentum=0.9999,
+      renorm=is_training,
+      trainable=True,
   )
-
-  return bn_gw_normalized_dense
 
 
 class FastGroupWiseTrans(object):
@@ -197,18 +188,17 @@ class FastGroupWiseTrans(object):
     self.init_multiplier = init_multiplier
 
     self.w = tf.get_variable(
-      name + "_group_weight",
-      [1, group_num, input_dim, out_dim],
-      initializer=customized_glorot_uniform(
-        fan_in=input_dim * init_multiplier, fan_out=out_dim * init_multiplier
-      ),
-      trainable=True,
+        f"{name}_group_weight",
+        [1, group_num, input_dim, out_dim],
+        initializer=customized_glorot_uniform(fan_in=input_dim * init_multiplier,
+                                              fan_out=out_dim * init_multiplier),
+        trainable=True,
     )
     self.b = tf.get_variable(
-      name + "_group_bias",
-      [1, group_num, out_dim],
-      initializer=tf.constant_initializer(0.0),
-      trainable=True,
+        f"{name}_group_bias",
+        [1, group_num, out_dim],
+        initializer=tf.constant_initializer(0.0),
+        trainable=True,
     )
 
   def __call__(self, input_tensor):
@@ -241,16 +231,16 @@ class GroupWiseTrans(object):
     w_list, b_list = [], []
     for idx in range(out_dim):
       this_w = tf.get_variable(
-        name + f"_group_weight_{idx}",
-        [1, group_num, input_dim],
-        initializer=tf.keras.initializers.glorot_uniform(),
-        trainable=True,
+          f"{name}_group_weight_{idx}",
+          [1, group_num, input_dim],
+          initializer=tf.keras.initializers.glorot_uniform(),
+          trainable=True,
       )
       this_b = tf.get_variable(
-        name + f"_group_bias_{idx}",
-        [1, group_num, 1],
-        initializer=tf.constant_initializer(0.0),
-        trainable=True,
+          f"{name}_group_bias_{idx}",
+          [1, group_num, 1],
+          initializer=tf.constant_initializer(0.0),
+          trainable=True,
       )
       w_list.append(this_w)
       b_list.append(this_b)
@@ -293,11 +283,10 @@ def sparse_clip_by_value(sparse_tf, min_val, max_val):
 
 
 def check_numerics_with_msg(tensor, message="", sparse_tensor=False):
-  if sparse_tensor:
-    values = tf.debugging.check_numerics(tensor.values, message=message)
-    return tf.SparseTensor(tensor.indices, values, tensor.dense_shape)
-  else:
+  if not sparse_tensor:
     return tf.debugging.check_numerics(tensor, message=message)
+  values = tf.debugging.check_numerics(tensor.values, message=message)
+  return tf.SparseTensor(tensor.indices, values, tensor.dense_shape)
 
 
 def pad_empty_sparse_tensor(tensor):
@@ -306,27 +295,25 @@ def pad_empty_sparse_tensor(tensor):
     values=[0.00001],
     dense_shape=tensor.dense_shape,
   )
-  result = tf.cond(
-    tf.equal(tf.size(tensor.values), 0),
-    lambda: dummy_tensor,
-    lambda: tensor,
+  return tf.cond(
+      tf.equal(tf.size(tensor.values), 0),
+      lambda: dummy_tensor,
+      lambda: tensor,
   )
-  return result
 
 
 def filter_nans_and_infs(tensor, sparse_tensor=False):
-  if sparse_tensor:
-    sparse_values = tensor.values
-    filtered_val = tf.where(
-      tf.logical_or(tf.is_nan(sparse_values), tf.is_inf(sparse_values)),
-      tf.zeros_like(sparse_values),
-      sparse_values,
-    )
-    return tf.SparseTensor(tensor.indices, filtered_val, tensor.dense_shape)
-  else:
+  if not sparse_tensor:
     return tf.where(
       tf.logical_or(tf.is_nan(tensor), tf.is_inf(tensor)), tf.zeros_like(tensor), tensor
     )
+  sparse_values = tensor.values
+  filtered_val = tf.where(
+    tf.logical_or(tf.is_nan(sparse_values), tf.is_inf(sparse_values)),
+    tf.zeros_like(sparse_values),
+    sparse_values,
+  )
+  return tf.SparseTensor(tensor.indices, filtered_val, tensor.dense_shape)
 
 
 def generate_disliked_mask(labels):

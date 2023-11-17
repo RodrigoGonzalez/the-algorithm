@@ -206,8 +206,8 @@ class EarlyStopHook(GetMetricsHook):
       eval_metric_ops = estimator_spec.eval_metric_ops
       if metric not in eval_metric_ops:
         raise ValueError(
-          "Expecting early_stop_metric '%s' key in eval_metric_ops dict"
-          % (metric))
+            f"Expecting early_stop_metric '{metric}' key in eval_metric_ops dict"
+        )
       # get the value_op from the (value_op, update_op) value
       return {k: v[0] for k, v in eval_metric_ops.items()}
 
@@ -242,7 +242,7 @@ class EarlyStopHook(GetMetricsHook):
         self._early_stop_name, self._metric, self._best_metric, epoch)
       # backup the file to checkpoint_dir/best_checkpoint
       assert self._latest_checkpoint_path, "expecting latest checkpoint"
-      logging.info("Backing up " + self._latest_checkpoint_path)
+      logging.info(f"Backing up {self._latest_checkpoint_path}")
 
       try:
         eval_checkpoint = tf.train.latest_checkpoint(self._eval_checkpoint_path)
@@ -368,7 +368,7 @@ class MetricsUpdateHook(GetMetricsHook):
 
     # TODO: should have a minimum to avoid too many calls to ModelRepo?
     if every_n_iter is not None and every_n_iter <= 0:
-      raise ValueError("invalid every_n_iter=%s." % every_n_iter)
+      raise ValueError(f"invalid every_n_iter={every_n_iter}.")
 
     self._timer = (
       NeverTriggerTimer() if only_log_at_end else
@@ -389,6 +389,7 @@ class MetricsUpdateHook(GetMetricsHook):
       eval_metric_ops = estimator_spec.eval_metric_ops
       # get the value_op from the (value_op, update_op) value
       return {k: v[0] for k, v in eval_metric_ops.items()}
+
     super(MetricsUpdateHook, self).__init__(get_metrics_fn=get_metrics_fn)
 
   def report_metrics(self):

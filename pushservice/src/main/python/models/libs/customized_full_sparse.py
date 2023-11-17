@@ -32,8 +32,7 @@ class FullSparse(defaultFullSparse):
 
     if isinstance(default_use_binary_values, (list, tuple)):
       raise ValueError(
-        "use_binary_values can not be %s when inputs is %s"
-        % (type(default_use_binary_values), type(inputs))
+          f"use_binary_values can not be {type(default_use_binary_values)} when inputs is {type(inputs)}"
       )
 
     outputs = sparse_dense_matmul(
@@ -51,6 +50,4 @@ class FullSparse(defaultFullSparse):
     if self.bias is not None:
       outputs = tf.nn.bias_add(outputs, self.bias)
 
-    if self.activation is not None:
-      return self.activation(outputs)  # pylint: disable=not-callable
-    return outputs
+    return self.activation(outputs) if self.activation is not None else outputs

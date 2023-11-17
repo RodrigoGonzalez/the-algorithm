@@ -40,36 +40,34 @@ def build_graph(
   if mode == tf.estimator.ModeKeys.PREDICT:
     loss = None
     output_label = "prediction"
-    if params.task_name in LABELS_LR:
-      output = tf.nn.sigmoid(logits)
-      output = tf.clip_by_value(output, 0, 1)
-
-      if run_light_ranking_group_metrics_in_bq:
-        graph_output["trace_id"] = features["meta.trace_id"]
-        graph_output["target"] = features["meta.ranking.weighted_oonc_model_score"]
-
-    else:
+    if params.task_name not in LABELS_LR:
       raise ValueError("Invalid Task Name !")
+
+    output = tf.nn.sigmoid(logits)
+    output = tf.clip_by_value(output, 0, 1)
+
+    if run_light_ranking_group_metrics_in_bq:
+      graph_output["trace_id"] = features["meta.trace_id"]
+      graph_output["target"] = features["meta.ranking.weighted_oonc_model_score"]
 
   else:
     output_label = "output"
     weights = tf.cast(features["weights"], dtype=tf.float32, name="RecordWeights")
 
-    if params.task_name in LABELS_LR:
-      if params.use_record_weight:
-        weights = tf.clip_by_value(
-          1.0 / (1.0 + weights + params.smooth_weight), params.min_record_weight, 1.0
-        )
-
-        loss = tf.reduce_sum(
-          tf.nn.sigmoid_cross_entropy_with_logits(labels=label, logits=logits) * weights
-        ) / (tf.reduce_sum(weights))
-      else:
-        loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=label, logits=logits))
-      output = tf.nn.sigmoid(logits)
-
-    else:
+    if params.task_name not in LABELS_LR:
       raise ValueError("Invalid Task Name !")
+
+    if params.use_record_weight:
+      weights = tf.clip_by_value(
+        1.0 / (1.0 + weights + params.smooth_weight), params.min_record_weight, 1.0
+      )
+
+      loss = tf.reduce_sum(
+        tf.nn.sigmoid_cross_entropy_with_logits(labels=label, logits=logits) * weights
+      ) / (tf.reduce_sum(weights))
+    else:
+      loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(labels=label, logits=logits))
+    output = tf.nn.sigmoid(logits)
 
   train_op = None
   if mode == tf.estimator.ModeKeys.TRAIN:
@@ -99,10 +97,7 @@ def build_graph(
 
 def get_params(args=None):
   parser = get_arg_parser_light_ranking()
-  if args is None:
-    return parser.parse_args()
-  else:
-    return parser.parse_args(args)
+  return parser.parse_args() if args is None else parser.parse_args(args)
 
 
 def _main():
@@ -148,7 +143,7 @@ def _main():
     logging.info("Training...")
     start = datetime.now()
 
-    early_stop_metric = "rce_unweighted_" + opt.task_name
+    early_stop_metric = f"rce_unweighted_{opt.task_name}"
     learn(
       early_stop_minimize=False,
       early_stop_metric=early_stop_metric,
@@ -159,7 +154,7 @@ def _main():
     )
 
     end = datetime.now()
-    logging.info("Training time: " + str(end - start))
+    logging.info(f"Training time: {str(end - start)}")
 
     logging.info("Exporting the models...")
 
@@ -179,8 +174,8 @@ def _main():
   )
   export_model_dir = decode_str_or_unicode(raw_model_path)
 
-  logging.info("Model export time: " + str(datetime.now() - start))
-  logging.info("The saved model directory is: " + opt.save_dir)
+  logging.info(f"Model export time: {str(datetime.now() - start)}")
+  logging.info(f"The saved model directory is: {opt.save_dir}")
 
   tf.logging.info("getting default continuous_feature_list")
   continuous_feature_list = get_feature_list_for_light_ranking(feature_list_path, opt.data_spec)
@@ -204,13 +199,14 @@ def _main():
     # Get Light/Heavy Ranker Predictions for Light Ranking Group Metrics in BigQuery
     # ----------------------------------------------------------------------------------------
     trainer_pred = DataRecordTrainer(
-      name=opt.model_trainer_name,
-      params=opt,
-      build_graph_fn=partial(build_graph, run_light_ranking_group_metrics_in_bq=True),
-      save_dir=opt.save_dir + "/tmp/",
-      run_config=None,
-      feature_config=feature_config,
-      metric_fn=get_metric_fn(opt.task_name, use_stratify_metrics=False),
+        name=opt.model_trainer_name,
+        params=opt,
+        build_graph_fn=partial(build_graph,
+                               run_light_ranking_group_metrics_in_bq=True),
+        save_dir=f"{opt.save_dir}/tmp/",
+        run_config=None,
+        feature_config=feature_config,
+        metric_fn=get_metric_fn(opt.task_name, use_stratify_metrics=False),
     )
     checkpoint_folder = os.path.join(opt.save_dir, "best_checkpoint")
     checkpoint = tf.train.latest_checkpoint(checkpoint_folder, latest_filename=None)

@@ -35,8 +35,6 @@ def get_trainable_variables(all_trainable_variables, trainable_regexes):
   tf.logging.info(f"Using filtered trainable variables: {trainable_variables}")
 
   assert (
-    trainable_variables
-  ), "Did not find trainable variables after filtering after filtering from {} number of vars originaly. All vars: {} and train regexes: {}".format(
-    len(all_trainable_variables), all_trainable_variables, trainable_regexes
-  )
+      trainable_variables
+  ), f"Did not find trainable variables after filtering after filtering from {len(all_trainable_variables)} number of vars originaly. All vars: {all_trainable_variables} and train regexes: {trainable_regexes}"
   return trainable_variables

@@ -164,10 +164,7 @@ def get_arg_parser():
 
 def get_params(args=None):
   parser = get_arg_parser()
-  if args is None:
-    return parser.parse_args()
-  else:
-    return parser.parse_args(args)
+  return parser.parse_args() if args is None else parser.parse_args(args)
 
 
 def get_arg_parser_light_ranking():

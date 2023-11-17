@@ -28,7 +28,7 @@ def score_loss_at_n(labels, predictions, lightN):
   labels_with_sorted_predictions = sorted(
     labels_with_predictions, key=lambda x: x[1], reverse=True
   )[:lightN]
-  labels_top1_light = max([label for label, _ in labels_with_sorted_predictions])
+  labels_top1_light = max(label for label, _ in labels_with_sorted_predictions)
   labels_top1_heavy = max(labels)
 
   return labels_top1_heavy - labels_top1_light
@@ -45,32 +45,20 @@ def cgr_at_nk(labels, predictions, lightN, heavyK):
   """
   assert len(labels) == len(predictions)
 
-  if (not lightN) or (not heavyK):
-    out = None
-  elif lightN <= 0 or heavyK <= 0:
-    out = None
-  else:
+  if not lightN or not heavyK or lightN <= 0 or heavyK <= 0:
+    return None
+  labels_with_predictions = zip(labels, predictions)
+  labels_with_sorted_predictions = sorted(
+    labels_with_predictions, key=lambda x: x[1], reverse=True
+  )[:lightN]
+  labels_topN_light = [label for label, _ in labels_with_sorted_predictions]
 
-    labels_with_predictions = zip(labels, predictions)
-    labels_with_sorted_predictions = sorted(
-      labels_with_predictions, key=lambda x: x[1], reverse=True
-    )[:lightN]
-    labels_topN_light = [label for label, _ in labels_with_sorted_predictions]
+  cg_light = (sum(labels_topN_light) if lightN <= heavyK else sum(
+      sorted(labels_topN_light, reverse=True)[:heavyK]))
+  ideal_ordering = sorted(labels, reverse=True)
+  cg_heavy = sum(ideal_ordering[: min(lightN, heavyK)])
 
-    if lightN <= heavyK:
-      cg_light = sum(labels_topN_light)
-    else:
-      labels_topK_heavy_from_light = sorted(labels_topN_light, reverse=True)[:heavyK]
-      cg_light = sum(labels_topK_heavy_from_light)
-
-    ideal_ordering = sorted(labels, reverse=True)
-    cg_heavy = sum(ideal_ordering[: min(lightN, heavyK)])
-
-    out = 0.0
-    if cg_heavy != 0:
-      out = max(cg_light / cg_heavy, 0)
-
-  return out
+  return max(cg_light / cg_heavy, 0) if cg_heavy != 0 else 0.0
 
 
 def _get_weight(w, atK):
@@ -97,38 +85,32 @@ def recall_at_nk(labels, predictions, n=None, k=None, w=None):
   assert len(labels) == len(predictions)
 
   if not any(labels):
-    out = None
-  else:
+    return None
+  safe_n = len(predictions) if not n else min(len(predictions), n)
+  safe_k = len(labels) if not k else min(len(labels), k)
 
-    safe_n = len(predictions) if not n else min(len(predictions), n)
-    safe_k = len(labels) if not k else min(len(labels), k)
+  labels_with_predictions = zip(labels, predictions)
+  sorted_labels_with_predictions = sorted(
+    labels_with_predictions, key=lambda x: x[0], reverse=True
+  )
 
-    labels_with_predictions = zip(labels, predictions)
-    sorted_labels_with_predictions = sorted(
-      labels_with_predictions, key=lambda x: x[0], reverse=True
-    )
+  order_sorted_labels_predictions = zip(range(len(labels)), *zip(*sorted_labels_with_predictions))
 
-    order_sorted_labels_predictions = zip(range(len(labels)), *zip(*sorted_labels_with_predictions))
+  order_with_predictions = [
+    (order, pred) for order, label, pred in order_sorted_labels_predictions
+  ]
+  order_with_sorted_predictions = sorted(order_with_predictions, key=lambda x: x[1], reverse=True)
 
-    order_with_predictions = [
-      (order, pred) for order, label, pred in order_sorted_labels_predictions
-    ]
-    order_with_sorted_predictions = sorted(order_with_predictions, key=lambda x: x[1], reverse=True)
+  pred_sorted_order_at_n = [order for order, _ in order_with_sorted_predictions][:safe_n]
 
-    pred_sorted_order_at_n = [order for order, _ in order_with_sorted_predictions][:safe_n]
+  intersection_weight = [
+    _get_weight(w, order) if order < safe_k else 0 for order in pred_sorted_order_at_n
+  ]
 
-    intersection_weight = [
-      _get_weight(w, order) if order < safe_k else 0 for order in pred_sorted_order_at_n
-    ]
+  intersection_score = sum(intersection_weight)
+  full_score = sum(w) if w else float(safe_k)
 
-    intersection_score = sum(intersection_weight)
-    full_score = sum(w) if w else float(safe_k)
-
-    out = 0.0
-    if full_score != 0:
-      out = intersection_score / full_score
-
-  return out
+  return intersection_score / full_score if full_score != 0 else 0.0
 
 
 class ExpectedLossGroupedMetricsConfiguration(GroupedMetricsConfiguration):
@@ -151,7 +133,7 @@ class ExpectedLossGroupedMetricsConfiguration(GroupedMetricsConfiguration):
   def metrics_dict(self):
     metrics_to_compute = {}
     for lightN in self.lightNs:
-      metric_name = "ExpectedLoss_atLight_" + str(lightN)
+      metric_name = f"ExpectedLoss_atLight_{str(lightN)}"
       metrics_to_compute[metric_name] = partial(score_loss_at_n, lightN=lightN)
     return metrics_to_compute
 
@@ -187,7 +169,7 @@ class CGRGroupedMetricsConfiguration(GroupedMetricsConfiguration):
     metrics_to_compute = {}
     for lightN in self.lightNs:
       for heavyK in self.heavyKs:
-        metric_name = "cgr_atLight_" + str(lightN) + "_atHeavy_" + str(heavyK)
+        metric_name = f"cgr_atLight_{str(lightN)}_atHeavy_{str(heavyK)}"
         metrics_to_compute[metric_name] = partial(cgr_at_nk, lightN=lightN, heavyK=heavyK)
     return metrics_to_compute
 
@@ -230,22 +212,22 @@ class RecallGroupedMetricsConfiguration(GroupedMetricsConfiguration):
         for k in self.labelK:
           if n >= k:
             metrics_to_compute[
-              "group_recall_unweighted_at_L" + str(n) + "_at_H" + str(k)
-            ] = partial(recall_at_nk, n=n, k=k)
+                f"group_recall_unweighted_at_L{str(n)}_at_H{str(k)}"] = partial(
+                    recall_at_nk, n=n, k=k)
             if self.weight:
               metrics_to_compute[
-                "group_recall_weighted_at_L" + str(n) + "_at_H" + str(k)
-              ] = partial(recall_at_nk, n=n, k=k, w=self.weight)
+                  f"group_recall_weighted_at_L{str(n)}_at_H{str(k)}"] = partial(
+                      recall_at_nk, n=n, k=k, w=self.weight)
 
     if self.labelK and not self.predN:
       for k in self.labelK:
-        metrics_to_compute["group_recall_unweighted_at_full_at_H" + str(k)] = partial(
-          recall_at_nk, k=k
-        )
+        metrics_to_compute[
+            f"group_recall_unweighted_at_full_at_H{str(k)}"] = partial(
+                recall_at_nk, k=k)
         if self.weight:
-          metrics_to_compute["group_recall_weighted_at_full_at_H" + str(k)] = partial(
-            recall_at_nk, k=k, w=self.weight
-          )
+          metrics_to_compute[
+              f"group_recall_weighted_at_full_at_H{str(k)}"] = partial(
+                  recall_at_nk, k=k, w=self.weight)
     return metrics_to_compute
 
   def extract_label(self, prec, drec, drec_label):

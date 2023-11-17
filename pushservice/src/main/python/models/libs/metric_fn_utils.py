@@ -99,7 +99,10 @@ def add_new_user_metrics(metric_fn):
     graph_output = {key: safe_mask(values, is_new) for key, values in graph_output.items()}
 
     new_user_metric_ops = metric_fn(graph_output, labels, weights)
-    new_user_metric_ops = {name + "_new_users": ops for name, ops in new_user_metric_ops.items()}
+    new_user_metric_ops = {
+        f"{name}_new_users": ops
+        for name, ops in new_user_metric_ops.items()
+    }
     metric_ops.update(new_user_metric_ops)
     return metric_ops
 
@@ -137,7 +140,7 @@ def get_meta_learn_single_binary_task_metric_fn(
     metric_op_weighted = get_partial_multi_binary_class_metric_fn(
       metrics, predcols=0, classes=classnames
     )
-    classnames_unweighted = ["unweighted_" + classname for classname in classnames]
+    classnames_unweighted = [f"unweighted_{classname}" for classname in classnames]
     metric_op_unweighted = get_partial_multi_binary_class_metric_fn(
       metrics, predcols=0, classes=classnames_unweighted
     )
@@ -195,7 +198,7 @@ def get_meta_learn_dual_binary_tasks_metric_fn(
     metric_op_weighted = get_partial_multi_binary_class_metric_fn(
       metrics, predcols=[0, 1], classes=classnames
     )
-    classnames_unweighted = ["unweighted_" + classname for classname in classnames]
+    classnames_unweighted = [f"unweighted_{classname}" for classname in classnames]
     metric_op_unweighted = get_partial_multi_binary_class_metric_fn(
       metrics, predcols=[0, 1], classes=classnames_unweighted
     )

@@ -103,9 +103,7 @@ class ChannelWiseDense(tf.keras.layers.Layer):
     transposed_residual = (
       tf.transpose(tf.matmul(transposed_x, self.kernel), perm=[1, 0, 2]) + self.bias
     )
-    output = tf.transpose(transposed_residual, perm=[0, 2, 1])
-
-    return output
+    return tf.transpose(transposed_residual, perm=[0, 2, 1])
 
 
 class ResidualLayer(tf.keras.layers.Layer):
@@ -123,6 +121,4 @@ class ResidualLayer(tf.keras.layers.Layer):
       filters=int(residual.shape[2]), strides=1, kernel_size=1, padding="SAME", use_bias=False
     )(inputs)
 
-    output = tf.add(shortcut, residual)
-
-    return output
+    return tf.add(shortcut, residual)

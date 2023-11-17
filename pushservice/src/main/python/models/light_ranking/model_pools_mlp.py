@@ -183,5 +183,4 @@ def deepnorm_light_ranking(
     else:
       raise ValueError("Invalid Task Name !")
 
-  output_dict = {"output": logits}
-  return output_dict
+  return {"output": logits}

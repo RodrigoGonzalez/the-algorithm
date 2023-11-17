@@ -56,10 +56,10 @@ class ClemNet(tf.keras.layers.Layer):
     self.params = params
 
   def build(self, input_shape: tf.TensorShape) -> None:
-    assert len(input_shape) in (
-      2,
-      3,
-    ), f"Tensor shape must be of length 3. Passed tensor of shape {input_shape}."
+    assert len(input_shape) in {
+        2,
+        3,
+    }, f"Tensor shape must be of length 3. Passed tensor of shape {input_shape}."
 
   def call(self, inputs: tf.Tensor, training: bool) -> tf.Tensor:
     if len(inputs.shape) < 3:

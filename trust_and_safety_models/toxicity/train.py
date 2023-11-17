@@ -138,11 +138,7 @@ class Trainer(object):
       f"{self.train_epochs}_seed{self.seed}"
     )
     print("------- Experiment name: ", experiment_name)
-    self.logdir = (
-      f"..."
-      if self.test
-      else f"..."
-    )
+    self.logdir = "..."
     self.checkpoint_path = f"{self.model_dir}/{experiment_name}"
 
   @staticmethod
@@ -150,8 +146,8 @@ class Trainer(object):
     return tf.summary.create_file_writer(os.path.join(logdir, metric_name))
 
   def get_callbacks(self, fold, val_data, test_data):
-    fold_logdir = self.logdir + f"_fold{fold}"
-    fold_checkpoint_path = self.checkpoint_path + f"_fold{fold}/{{epoch:02d}}"
+    fold_logdir = f"{self.logdir}_fold{fold}"
+    fold_checkpoint_path = f"{self.checkpoint_path}_fold{fold}/{{epoch:02d}}"
 
     tb_args = {
       "log_dir": fold_logdir,
@@ -235,12 +231,11 @@ class Trainer(object):
 
     if warm_up_perc > 0:
       print(f".... using warm-up for {warm_up_steps} steps")
-      warm_up_schedule = WarmUp(
-        initial_learning_rate=self.learning_rate,
-        decay_schedule_fn=learning_rate_fn,
-        warmup_steps=warm_up_steps,
+      return WarmUp(
+          initial_learning_rate=self.learning_rate,
+          decay_schedule_fn=learning_rate_fn,
+          warmup_steps=warm_up_steps,
       )
-      return warm_up_schedule
     return learning_rate_fn
 
   def get_optimizer(self, schedule):
@@ -272,7 +267,7 @@ class Trainer(object):
     return optimizer, callbacks
 
   def load_data(self):
-    if self.project == 435 or self.project == 211:
+    if self.project in [435, 211]:
       if self.dataset_type is None:
         data_loader = ENLoader(project=self.project, setting_file=self.setting_file)
         dataset_type_args = {}
@@ -280,14 +275,13 @@ class Trainer(object):
         data_loader = ENLoaderWithSampling(project=self.project, setting_file=self.setting_file)
         dataset_type_args = self.dataset_type
 
-    df = data_loader.load_data(
-      language=self.language, test=self.test, reload=self.dataset_reload, **dataset_type_args
-    )
-
-    return df
+    return data_loader.load_data(language=self.language,
+                                 test=self.test,
+                                 reload=self.dataset_reload,
+                                 **dataset_type_args)
 
   def preprocess(self, df):
-    if self.project == 435 or self.project == 211:
+    if self.project in [435, 211]:
       if self.preprocessing is None:
         data_prepro = DefaultENNoPreprocessor()
       elif self.preprocessing == "default":
@@ -377,7 +371,7 @@ class Trainer(object):
 
     print("Loading MB generator")
     i = 0
-    if self.project == 435 or self.project == 211:
+    if self.project in [435, 211]:
       mb_generator, steps_per_epoch, val_data, test_data = self.mb_loader.no_cv_load(full_df=df)
       self._train_single_fold(
         mb_generator=mb_generator,
@@ -388,14 +382,3 @@ class Trainer(object):
       )
     else:
       raise ValueError("Sure you want to do multiple fold training")
-      for mb_generator, steps_per_epoch, val_data, test_data in self.mb_loader(full_df=df):
-        self._train_single_fold(
-          mb_generator=mb_generator,
-          val_data=val_data,
-          test_data=test_data,
-          steps_per_epoch=steps_per_epoch,
-          fold=i,
-        )
-        i += 1
-        if i == 3:
-          break

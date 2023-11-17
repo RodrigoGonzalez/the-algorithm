@@ -69,10 +69,7 @@ def get_arg_parser():
 
 def get_params(args=None):
   parser = get_arg_parser()
-  if args is None:
-    return parser.parse_args()
-  else:
-    return parser.parse_args(args)
+  return parser.parse_args() if args is None else parser.parse_args(args)
 
 
 def _main():
@@ -86,8 +83,9 @@ def _main():
     feature_list_path = opt.feature_list
 
   if opt.warm_start_base_dir != "none" and tf.io.gfile.exists(opt.warm_start_base_dir):
-    if opt.output_checkpoint_dir == "none" or opt.output_checkpoint_dir == opt.warm_start_base_dir:
-      _warm_start_base_dir = os.path.normpath(opt.warm_start_base_dir) + "_backup_warm_start"
+    if opt.output_checkpoint_dir in ["none", opt.warm_start_base_dir]:
+      _warm_start_base_dir = (
+          f"{os.path.normpath(opt.warm_start_base_dir)}_backup_warm_start")
       _output_folder_dir = opt.warm_start_base_dir
 
       rename_dir(opt.warm_start_base_dir, _warm_start_base_dir)

@@ -53,7 +53,7 @@ html_logo = u""""""
 # called "logo" or project name, in docs folder)
 if not html_logo:
   location = dirname(abspath(__file__))
-  for logo_file in ["logo.png", "logo.svg", ("%s.png" % project), ("%s.svg" % project)]:
+  for logo_file in ["logo.png", "logo.svg", f"{project}.png", f"{project}.svg"]:
     html_logo = logo_file if isfile(join(location, logo_file)) else html_logo
 
 graphviz_output_format = "svg"

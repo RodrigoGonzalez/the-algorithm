@@ -82,13 +82,11 @@ def main() -> None:
   train_input_fn = trainer.get_train_input_fn(shuffle=True)
   eval_input_fn = trainer.get_eval_input_fn(repeat=False, shuffle=False)
 
-  learn = trainer.learn
-  if args.distributed or args.num_workers is not None:
-    learn = trainer.train_and_evaluate
-
   if not args.directly_export_best:
     logging.info("Starting training")
     start = datetime.now()
+    learn = (trainer.train_and_evaluate if args.distributed
+             or args.num_workers is not None else trainer.learn)
     learn(
       early_stop_minimize=False,
       early_stop_metric="pr_auc_unweighted_OONC",

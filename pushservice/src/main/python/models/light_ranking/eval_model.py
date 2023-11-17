@@ -86,4 +86,4 @@ if __name__ == "__main__":
     )
 
   end = datetime.now()
-  logging.info("Evaluating time: " + str(end - start))
+  logging.info(f"Evaluating time: {str(end - start)}")

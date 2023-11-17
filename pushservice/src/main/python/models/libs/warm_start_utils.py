@@ -17,22 +17,34 @@ import tensorflow.compat.v1 as tf
 
 
 def get_model_type_to_tensors_to_change_axis():
-  model_type_to_tensors_to_change_axis = {
-    "magic_recs/model/batch_normalization/beta": ([0], "continuous"),
-    "magic_recs/model/batch_normalization/gamma": ([0], "continuous"),
-    "magic_recs/model/batch_normalization/moving_mean": ([0], "continuous"),
-    "magic_recs/model/batch_normalization/moving_stddev": ([0], "continuous"),
-    "magic_recs/model/batch_normalization/moving_variance": ([0], "continuous"),
-    "magic_recs/model/batch_normalization/renorm_mean": ([0], "continuous"),
-    "magic_recs/model/batch_normalization/renorm_stddev": ([0], "continuous"),
-    "magic_recs/model/logits/EngagementGivenOONC_logits/clem_net_1/block2_4/channel_wise_dense_4/kernel": (
-      [1],
-      "all",
-    ),
-    "magic_recs/model/logits/OONC_logits/clem_net/block2/channel_wise_dense/kernel": ([1], "all"),
+  return {
+      "magic_recs/model/batch_normalization/beta": ([0], "continuous"),
+      "magic_recs/model/batch_normalization/gamma": ([0], "continuous"),
+      "magic_recs/model/batch_normalization/moving_mean": ([0], "continuous"),
+      "magic_recs/model/batch_normalization/moving_stddev": (
+          [0],
+          "continuous",
+      ),
+      "magic_recs/model/batch_normalization/moving_variance": (
+          [0],
+          "continuous",
+      ),
+      "magic_recs/model/batch_normalization/renorm_mean": ([0], "continuous"),
+      "magic_recs/model/batch_normalization/renorm_stddev": (
+          [0],
+          "continuous",
+      ),
+      "magic_recs/model/logits/EngagementGivenOONC_logits/clem_net_1/block2_4/channel_wise_dense_4/kernel":
+      (
+          [1],
+          "all",
+      ),
+      "magic_recs/model/logits/OONC_logits/clem_net/block2/channel_wise_dense/kernel":
+      (
+          [1],
+          "all",
+      ),
   }
-
-  return model_type_to_tensors_to_change_axis
 
 
 def mkdirp(dirname):
@@ -95,12 +107,10 @@ def get_continuous_mapping_from_feat_dict(old_feature_dict, new_feature_dict):
     old_cont + old_bin + _dummy_sparse_feat, new_cont + new_bin + _dummy_sparse_feat
   )
 
-  _res = {
-    "continuous": (cont_old_var_ind, cont_new_var_ind),
-    "all": (all_old_var_ind, all_new_var_ind),
+  return {
+      "continuous": (cont_old_var_ind, cont_new_var_ind),
+      "all": (all_old_var_ind, all_new_var_ind),
   }
-
-  return _res
 
 
 def warm_start_from_var_dict(
@@ -299,11 +309,9 @@ def warm_start_checkpoint(
     "all": len(new_feature_dict["continuous"] + new_feature_dict["binary"]) + 100,
   }
 
-  warm_started_ckpt_path = warm_start_from_var_dict(
-    old_ckpt_path,
-    var_ind_dict,
-    output_dir=output_ckpt_folder,
-    new_len_var=new_len_var,
+  return warm_start_from_var_dict(
+      old_ckpt_path,
+      var_ind_dict,
+      output_dir=output_ckpt_folder,
+      new_len_var=new_len_var,
   )
-
-  return warm_started_ckpt_path
